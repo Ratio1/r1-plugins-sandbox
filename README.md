@@ -8,22 +8,23 @@ It is designed to run alongside [ratio1_sdk_go](https://github.com/Ratio1/ratio1
 
 Every push to `main` triggers the release workflow in `.github/workflows/release.yml`. It builds cross-platform archives and publishes them to the [latest release](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest).
 
-| OS | Arch | Archive | Download |
-| --- | --- | --- | --- |
-| Linux | amd64 | `r1-plugins-sandbox_linux_amd64.tar.gz` | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_linux_amd64.tar.gz) |
-| Linux | arm64 | `r1-plugins-sandbox_linux_arm64.tar.gz` | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_linux_arm64.tar.gz) |
-| macOS | amd64 | `r1-plugins-sandbox_darwin_amd64.tar.gz` | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_darwin_amd64.tar.gz) |
-| macOS | arm64 | `r1-plugins-sandbox_darwin_arm64.tar.gz` | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_darwin_arm64.tar.gz) |
-| Windows | amd64 | `r1-plugins-sandbox_windows_amd64.zip` | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_windows_amd64.zip) |
+| OS      | Arch  | Archive                                  | Download                                                                                                                 |
+| ------- | ----- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Linux   | amd64 | `r1-plugins-sandbox_linux_amd64.tar.gz`  | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_linux_amd64.tar.gz)  |
+| Linux   | arm64 | `r1-plugins-sandbox_linux_arm64.tar.gz`  | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_linux_arm64.tar.gz)  |
+| macOS   | amd64 | `r1-plugins-sandbox_darwin_amd64.tar.gz` | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_darwin_amd64.tar.gz) |
+| macOS   | arm64 | `r1-plugins-sandbox_darwin_arm64.tar.gz` | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_darwin_arm64.tar.gz) |
+| Windows | amd64 | `r1-plugins-sandbox_windows_amd64.zip`   | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_windows_amd64.zip)   |
 
 Extract the archive, place `r1-plugins-sandbox` (or `r1-plugins-sandbox.exe`) on your `PATH`, and you are ready to go.
+If macOS warns that the binary is from an unidentified developer, follow Apple's steps to [open the app anyway](https://support.apple.com/HT202491).
 
 ## Highlights
 
-- Ships the same REST surface as the production plugins (`/set`, `/get`, `/add_file`, `/get_status`, and more).
-- Emits ready-to-copy environment exports so existing clients can discover the sandbox automatically.
-- Provides deterministic seeding, latency injection, and fault simulation for integration tests.
-- Produces detailed request/response logs to help debug your flows.
+-   Ships the same REST surface as the production plugins (`/set`, `/get`, `/add_file`, `/get_status`, and more).
+-   Emits ready-to-copy environment exports so existing clients can discover the sandbox automatically.
+-   Provides deterministic seeding, latency injection, and fault simulation for integration tests.
+-   Produces detailed request/response logs to help debug your flows.
 
 ## Download a release build
 
