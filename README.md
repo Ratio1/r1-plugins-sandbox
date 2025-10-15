@@ -17,6 +17,7 @@ Every push to `main` triggers the release workflow in `.github/workflows/release
 | Windows | amd64 | `r1-plugins-sandbox_windows_amd64.zip`   | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_windows_amd64.zip)   |
 
 Extract the archive, place `r1-plugins-sandbox` (or `r1-plugins-sandbox.exe`) on your `PATH`, and you are ready to go.
+
 If macOS warns that the binary is from an unidentified developer, follow Apple's steps to [open the app anyway](https://support.apple.com/HT202491).
 
 ## Highlights
