@@ -7,7 +7,7 @@
     <key>CFBundleExecutable</key>
     <string>launcher</string>
     <key>CFBundleIdentifier</key>
-    <string>com.ratio1.r1-plugins-sandbox.app</string>
+    <string>ai.ratio1.r1-plugins-sandbox.app</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>

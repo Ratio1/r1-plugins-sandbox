@@ -12,13 +12,11 @@ Every push to `main` triggers the release workflow in `.github/workflows/release
 | ------- | ----- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Linux   | amd64 | `r1-plugins-sandbox_linux_amd64.tar.gz`  | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_linux_amd64.tar.gz)  |
 | Linux   | arm64 | `r1-plugins-sandbox_linux_arm64.tar.gz`  | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_linux_arm64.tar.gz)  |
-| macOS   | amd64 | `r1-plugins-sandbox_darwin_amd64.tar.gz` | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_darwin_amd64.tar.gz) |
-| macOS   | arm64 | `r1-plugins-sandbox_darwin_arm64.tar.gz` | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_darwin_arm64.tar.gz) |
+| macOS   | amd64 | `r1-plugins-sandbox_mac_amd64.zip`       | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_mac_amd64.zip)       |
+| macOS   | arm64 | `r1-plugins-sandbox_mac_arm64.zip`       | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_mac_arm64.zip)       |
 | Windows | amd64 | `r1-plugins-sandbox_windows_amd64.zip`   | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_windows_amd64.zip)   |
 
 Extract the archive, place `r1-plugins-sandbox` (or `r1-plugins-sandbox.exe`) on your `PATH`, and you are ready to go.
-
-If macOS warns that the binary is from an unidentified developer, follow Apple's steps to [open the app anyway](https://support.apple.com/HT202491).
 
 ## Highlights
 
@@ -32,10 +30,26 @@ If macOS warns that the binary is from an unidentified developer, follow Apple's
 Grab the artifact that matches your platform from the table above or directly from the [releases page](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest), then make it executable and run it.
 
 ```bash
-# macOS arm64 example
-curl -L https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_darwin_arm64.tar.gz \
+# Linux amd64 example
+curl -L https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_linux_amd64.tar.gz \
   | tar -xz
 chmod +x r1-plugins-sandbox
+./r1-plugins-sandbox --help
+```
+
+For macOS, grab either the signed `.app` bundle or the CLI archive:
+
+```bash
+# macOS universal app
+curl -L https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox-macos.app.zip \
+  -o r1-plugins-sandbox-macos.app.zip
+unzip r1-plugins-sandbox-macos.app.zip
+open ./r1-plugins-sandbox.app
+
+# macOS CLI (arm64 shown; use _mac_amd64.zip on Intel)
+curl -L https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_mac_arm64.zip \
+  -o r1-plugins-sandbox_mac_arm64.zip
+unzip r1-plugins-sandbox_mac_arm64.zip
 ./r1-plugins-sandbox --help
 ```
 

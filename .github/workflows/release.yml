@@ -31,7 +31,7 @@ jobs:
           minor_pattern: "(feat|feature)"
           version_format: "${major}.${minor}.${patch}"
 
-  build-non-darwin:
+  build-non-mac:
     name: Build Linux and Windows Artifacts
     runs-on: ubuntu-latest
     needs: calculate-version
@@ -85,7 +85,7 @@ jobs:
       - name: Upload non-macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: non-darwin-dist
+          name: non-mac-dist
           path: dist/*
           if-no-files-found: error
 
@@ -101,7 +101,7 @@ jobs:
       AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
       AC_API_ISSUER_ID: ${{ secrets.AC_API_ISSUER_ID }}
       AC_API_KEY: ${{ secrets.AC_API_KEY }}
-      MAC_BUNDLE_ID: com.ratio1.r1-plugins-sandbox
+      MAC_BUNDLE_ID: ai.ratio1.r1-plugins-sandbox
       RELEASE_VERSION: ${{ needs.calculate-version.outputs.version }}
     steps:
       - name: Checkout repository
@@ -173,14 +173,14 @@ jobs:
           rm -rf "${dist}"
           mkdir -p "${dist}"
           for GOARCH in amd64 arm64; do
-            build_dir="${RUNNER_TEMP}/darwin_${GOARCH}"
+            build_dir="${RUNNER_TEMP}/mac_${GOARCH}"
             mkdir -p "${build_dir}"
             bin_path="${build_dir}/r1-plugins-sandbox"
-            echo "building signed binary for darwin/${GOARCH}"
+            echo "building signed binary for mac/${GOARCH}"
             GOOS=darwin GOARCH="${GOARCH}" CGO_ENABLED=0 \
               go build -ldflags="-s -w" -o "${bin_path}"
             codesign --force --options runtime --timestamp --sign "${MAC_SIGNING_IDENTITY}" --keychain "${SIGNING_KEYCHAIN}" --identifier "${MAC_BUNDLE_ID}" "${bin_path}"
-            submission_zip="${RUNNER_TEMP}/r1-plugins-sandbox_darwin_${GOARCH}.zip"
+            submission_zip="${RUNNER_TEMP}/r1-plugins-sandbox_mac_${GOARCH}.zip"
             /usr/bin/zip -q "${submission_zip}" -j "${bin_path}"
             xcrun notarytool submit "${submission_zip}" \
               --key "${AC_API_KEY_PATH}" \
@@ -190,7 +190,7 @@ jobs:
             if ! xcrun stapler staple "${bin_path}"; then
               echo "::warning::Stapler could not attach a ticket to ${bin_path}; continuing without staple (often unsupported for CLI binaries)."
             fi
-            final_archive="${dist}/r1-plugins-sandbox_darwin_${GOARCH}.zip"
+            final_archive="${dist}/r1-plugins-sandbox_mac_${GOARCH}.zip"
             mv "${submission_zip}" "${final_archive}"
             tmp_unzip="${RUNNER_TEMP}/verify_${GOARCH}"
             rm -rf "${tmp_unzip}"
@@ -205,8 +205,8 @@ jobs:
           mkdir -p "${app_dir}/Contents/MacOS" "${app_dir}/Contents/Resources"
           universal_bin="${app_dir}/Contents/Resources/r1-plugins-sandbox"
           lipo -create \
-            "${RUNNER_TEMP}/darwin_amd64/r1-plugins-sandbox" \
-            "${RUNNER_TEMP}/darwin_arm64/r1-plugins-sandbox" \
+            "${RUNNER_TEMP}/mac_amd64/r1-plugins-sandbox" \
+            "${RUNNER_TEMP}/mac_arm64/r1-plugins-sandbox" \
             -output "${universal_bin}"
           chmod +x "${universal_bin}"
           cp packaging/macos/Info.plist "${app_dir}/Contents/Info.plist"
@@ -240,13 +240,13 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - calculate-version
-      - build-non-darwin
+      - build-non-mac
       - build-macos
     steps:
       - name: Download non-macOS artifacts
         uses: actions/download-artifact@v4
         with:
-          name: non-darwin-dist
+          name: non-mac-dist
           path: dist
 
       - name: Download macOS artifacts
