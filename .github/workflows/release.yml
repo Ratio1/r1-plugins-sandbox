@@ -9,57 +9,17 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    name: Build and Release SDK
+  calculate-version:
+    name: Calculate Version
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version_tag: ${{ steps.version.outputs.version_tag }}
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: "1.21"
-
-      - name: Run tests
-        run: go test ./...
-
-      - name: Build sandbox binaries
-        run: |
-          set -euo pipefail
-          dist="dist"
-          rm -rf "${dist}"
-          mkdir -p "${dist}"
-          platforms=(
-            "linux amd64"
-            "linux arm64"
-            "darwin amd64"
-            "darwin arm64"
-            "windows amd64"
-          )
-          for platform in "${platforms[@]}"; do
-            read -r GOOS GOARCH <<<"${platform}"
-            build_dir="${dist}/${GOOS}_${GOARCH}"
-            mkdir -p "${build_dir}"
-            bin_name="r1-plugins-sandbox"
-            ext=""
-            archive_ext="tar.gz"
-            if [ "${GOOS}" = "windows" ]; then
-              ext=".exe"
-              archive_ext="zip"
-            fi
-            echo "building ${bin_name}${ext} for ${GOOS}/${GOARCH}"
-            GOOS="${GOOS}" GOARCH="${GOARCH}" CGO_ENABLED=0 \
-              go build -ldflags="-s -w" -o "${build_dir}/${bin_name}${ext}"
-            if [ "${archive_ext}" = "zip" ]; then
-              (cd "${build_dir}" && zip -q "../${bin_name}_${GOOS}_${GOARCH}.zip" "${bin_name}${ext}")
-            else
-              (cd "${build_dir}" && tar -czf "../${bin_name}_${GOOS}_${GOARCH}.tar.gz" "${bin_name}${ext}")
-            fi
-            rm -rf "${build_dir}"
-          done
 
       - name: Generate Semantic Version
         id: version
@@ -70,13 +30,120 @@ jobs:
           minor_pattern: "(feat|feature)"
           version_format: "${major}.${minor}.${patch}"
 
+  build:
+    name: Build Artifacts
+    runs-on: ${{ matrix.os }}
+    needs: calculate-version
+    env:
+      RELEASE_VERSION: ${{ needs.calculate-version.outputs.version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Non-macOS targets
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+          - os: ubuntu-latest
+            goos: windows
+            goarch: amd64
+          # macOS (build + sign + notarize + app)
+          - os: macos-latest
+            mac: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        if: ${{ !matrix.mac }}
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
+      # Build & archive for Linux/Windows
+      - name: Build (non-macOS)
+        if: ${{ !matrix.mac }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dist="dist"
+          rm -rf "$dist"
+          mkdir -p "$dist"
+          bin="r1-plugins-sandbox"
+          ext=""
+          archive="tar.gz"
+
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            ext=".exe"
+            archive="zip"
+          fi
+
+          echo "Building ${bin}${ext} for ${{ matrix.goos }}/${{ matrix.goarch }}"
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 \
+            go build -ldflags="-s -w" -o "${bin}${ext}"
+
+          pkg="${bin}_${{ matrix.goos }}_${{ matrix.goarch }}"
+          if [ "$archive" = "zip" ]; then
+            zip -q "dist/${pkg}.zip" "${bin}${ext}"
+          else
+            tar -czf "dist/${pkg}.tar.gz" "${bin}${ext}"
+          fi
+          rm -f "${bin}${ext}"
+
+      - name: Upload artifact (non-macOS)
+        if: ${{ !matrix.mac }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+          if-no-files-found: error
+
+      # macOS: composite action for build + sign + notarize + app bundle + zip
+      - name: Sign & Notarize macOS (universal + per-arch)
+        if: ${{ matrix.mac }}
+        uses: ./.github/actions/macos-sign-notarize
+        with:
+          signing-identity: ${{ secrets.MAC_SIGNING_IDENTITY }}
+          certificate: ${{ secrets.MAC_CERTIFICATE }}
+          certificate-password: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+          keychain-password: ${{ secrets.MAC_KEYCHAIN_PASSWORD }}
+          ac-api-key-id: ${{ secrets.AC_API_KEY_ID }}
+          ac-api-issuer-id: ${{ secrets.AC_API_ISSUER_ID }}
+          ac-api-key: ${{ secrets.AC_API_KEY }}
+          bundle-id: ai.ratio1.r1-plugins-sandbox
+          version: ${{ env.RELEASE_VERSION }}
+
+      - name: Upload artifact (macOS)
+        if: ${{ matrix.mac }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dist
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Publish Release
+    runs-on: ubuntu-latest
+    needs: [calculate-version, build]
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.version_tag }}
-          name: v${{ steps.version.outputs.version }}
+          tag_name: ${{ needs.calculate-version.outputs.version_tag }}
+          name: v${{ needs.calculate-version.outputs.version }}
           draft: false
           prerelease: false
-          files: dist/*.tar.gz,dist/*.zip
+          files: dist/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
