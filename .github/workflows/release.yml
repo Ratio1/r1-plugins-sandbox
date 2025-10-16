@@ -185,21 +185,18 @@ jobs:
               --key "${AC_API_KEY_PATH}" \
               --key-id "${AC_API_KEY_ID}" \
               --issuer "${AC_API_ISSUER_ID}" \
-              --primary-bundle-id "${MAC_BUNDLE_ID}" \
               --wait
-            final_archive="${dist}/r1-plugins-sandbox_darwin_${GOARCH}.zip"
             if ! xcrun stapler staple "${bin_path}"; then
               echo "::warning::Stapler could not attach a ticket to ${bin_path}; continuing without staple (often unsupported for CLI binaries)."
             fi
-            /usr/bin/zip -q "${final_archive}" -j "${bin_path}"
+            final_archive="${dist}/r1-plugins-sandbox_darwin_${GOARCH}.zip"
+            mv "${submission_zip}" "${final_archive}"
             tmp_unzip="${RUNNER_TEMP}/verify_${GOARCH}"
             rm -rf "${tmp_unzip}"
             mkdir -p "${tmp_unzip}"
             /usr/bin/unzip -q "${final_archive}" -d "${tmp_unzip}"
-            if ! /usr/sbin/spctl --assess --type execute "${tmp_unzip}/r1-plugins-sandbox"; then
-              echo "::warning::spctl reported non-app binary for ${GOARCH}. The binary remains signed and notarized."
-            fi
-            rm -rf "${tmp_unzip}" "${submission_zip}"
+            /usr/bin/codesign --verify --verbose=2 "${tmp_unzip}/r1-plugins-sandbox"
+            rm -rf "${tmp_unzip}"
           done
 
       - name: Upload macOS artifacts
