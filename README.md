@@ -50,7 +50,6 @@ Windows users can download `r1-plugins-sandbox_windows_amd64.zip`, unzip it, and
 When the server starts it prints the environment variables you need to export:
 
 ```
-export R1_RUNTIME_MODE=http
 export EE_CHAINSTORE_API_URL=http://127.0.0.1:8787
 export EE_R1FS_API_URL=http://127.0.0.1:8788
 ```

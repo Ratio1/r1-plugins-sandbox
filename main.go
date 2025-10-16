@@ -167,7 +167,6 @@ func main() {
 	log.Printf("ratio1-sandbox cstore listening on %s", *cstoreAddr)
 	log.Printf("ratio1-sandbox r1fs listening on %s", *r1fsAddr)
 	fmt.Println()
-	fmt.Println("export R1_RUNTIME_MODE=http")
 	fmt.Printf("export %s=http://%s\n", cstoreURLEnv, hostFromAddr(*cstoreAddr))
 	fmt.Printf("export %s=http://%s\n", r1fsURLEnv, hostFromAddr(*r1fsAddr))
 	fmt.Println()
