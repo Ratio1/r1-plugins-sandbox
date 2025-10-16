@@ -349,7 +349,7 @@ func handleCStoreHGetAll(w http.ResponseWriter, r *http.Request, store *cstoremo
 		writeError(w, http.StatusBadRequest, "hkey is required", nil)
 		return
 	}
-	items, err := cstoremock.HGetAll[string](r.Context(), store, hashKey)
+	items, err := cstoremock.HGetAll[any](r.Context(), store, hashKey)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "cstore hgetall failed", err)
 		return
@@ -358,7 +358,7 @@ func handleCStoreHGetAll(w http.ResponseWriter, r *http.Request, store *cstoremo
 		writeResult(w, nil)
 		return
 	}
-	result := make(map[string]string, len(items))
+	result := make(map[string]any, len(items))
 	for _, item := range items {
 		result[item.Field] = item.Value
 	}
