@@ -2,21 +2,28 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"math/rand"
+	"net"
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Ratio1/r1-plugins-sandbox/internal/devseed"
 	cstoremock "github.com/Ratio1/r1-plugins-sandbox/mock/cstore"
 	r1fsmock "github.com/Ratio1/r1-plugins-sandbox/mock/r1fs"
+	"golang.org/x/sync/errgroup"
 )
 
 type failConfig struct {
@@ -92,8 +99,20 @@ func main() {
 		log.Fatalf("parse fail flag: %v", err)
 	}
 
+	recoverMiddleware := func(next http.HandlerFunc) http.HandlerFunc {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if rec := recover(); rec != nil {
+					log.Printf("panic: %v", rec)
+					http.Error(w, "internal error", http.StatusInternalServerError)
+				}
+			}()
+			next.ServeHTTP(w, r)
+		})
+	}
+
 	wrap := func(next http.HandlerFunc) http.HandlerFunc {
-		return loggingMiddleware(withMiddleware(*latency, failCfg, next))
+		return recoverMiddleware(loggingMiddleware(withMiddleware(*latency, failCfg, next)))
 	}
 
 	cstoreMux := http.NewServeMux()
@@ -151,19 +170,28 @@ func main() {
 		handleR1FSStatus(w, r, fsMock)
 	}))
 
-	cstoreServer := &http.Server{Addr: *cstoreAddr, Handler: cstoreMux}
-	r1fsServer := &http.Server{Addr: *r1fsAddr, Handler: r1fsMux}
-
-	go func() {
-		if err := cstoreServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("cstore server failed: %v", err)
-		}
-	}()
+	cstoreServer := &http.Server{
+		Addr:              *cstoreAddr,
+		Handler:           cstoreMux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	r1fsServer := &http.Server{
+		Addr:              *r1fsAddr,
+		Handler:           r1fsMux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		// ErrorLog: log.New(os.Stderr, "r1fs: ", log.LstdFlags),
+	}
 
 	fmt.Print(Logo)
+	fmt.Println()
 	fmt.Println("Ratio1 Plugins Sandbox")
 	fmt.Println()
-
 	log.Printf("ratio1-sandbox cstore listening on %s", *cstoreAddr)
 	log.Printf("ratio1-sandbox r1fs listening on %s", *r1fsAddr)
 	fmt.Println()
@@ -171,8 +199,38 @@ func main() {
 	fmt.Printf("export %s=http://%s\n", r1fsURLEnv, hostFromAddr(*r1fsAddr))
 	fmt.Println()
 
-	if err := r1fsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("r1fs server failed: %v", err)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	g, ctx := errgroup.WithContext(ctx)
+
+	run := func(s *http.Server, name string) func() error {
+		return func() error {
+			ln, err := net.Listen("tcp", s.Addr)
+			if err != nil {
+				return fmt.Errorf("%s listen: %w", name, err)
+			}
+
+			go func() {
+				<-ctx.Done()
+				shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				if err := s.Shutdown(shutCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+					log.Printf("%s shutdown error: %v", name, err)
+				}
+			}()
+			if err := s.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				return fmt.Errorf("%s serve: %w", name, err)
+			}
+			return nil
+		}
+	}
+
+	g.Go(run(cstoreServer, "cstore"))
+	g.Go(run(r1fsServer, "r1fs"))
+
+	if err := g.Wait(); err != nil {
+		log.Fatalf("server error: %v", err)
 	}
 }
 
