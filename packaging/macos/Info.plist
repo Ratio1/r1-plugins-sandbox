@@ -4,6 +4,8 @@
   <dict>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
+    <key>CFBundleDisplayName</key>
+    <string>Ratio1 Plugins Sandbox</string>
     <key>CFBundleExecutable</key>
     <string>launcher</string>
     <key>CFBundleIdentifier</key>
@@ -22,5 +24,13 @@
     <string>11.0</string>
     <key>LSUIElement</key>
     <false/>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.developer-tools</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Ratio1 Plugins Sandbox opens a Terminal window to run the CLI.</string>
+    <key>NSHumanReadableDescription</key>
+    <string>Run the Ratio1 plugins sandbox locally in a Terminal window.</string>
   </dict>
 </plist>
