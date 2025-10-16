@@ -17,7 +17,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       version_tag: ${{ steps.version.outputs.version_tag }}
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -31,204 +31,97 @@ jobs:
           minor_pattern: "(feat|feature)"
           version_format: "${major}.${minor}.${patch}"
 
-  build-non-mac:
-    name: Build Linux and Windows Artifacts
-    runs-on: ubuntu-latest
+  build:
+    name: Build Artifacts
+    runs-on: ${{ matrix.os }}
     needs: calculate-version
+    env:
+      RELEASE_VERSION: ${{ needs.calculate-version.outputs.version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Non-macOS targets
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+          - os: ubuntu-latest
+            goos: windows
+            goarch: amd64
+          # macOS (build + sign + notarize + app)
+          - os: macos-latest
+            mac: true
+
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Go
+        if: ${{ !matrix.mac }}
         uses: actions/setup-go@v4
         with:
           go-version: "1.21"
 
-      - name: Run tests
-        run: go test ./...
-
-      - name: Build sandbox binaries
+      # Build & archive for Linux/Windows
+      - name: Build (non-macOS)
+        if: ${{ !matrix.mac }}
+        shell: bash
         run: |
           set -euo pipefail
           dist="dist"
-          rm -rf "${dist}"
-          mkdir -p "${dist}"
-          platforms=(
-            "linux amd64"
-            "linux arm64"
-            "windows amd64"
-          )
-          for platform in "${platforms[@]}"; do
-            read -r GOOS GOARCH <<<"${platform}"
-            build_dir="${dist}/${GOOS}_${GOARCH}"
-            mkdir -p "${build_dir}"
-            bin_name="r1-plugins-sandbox"
-            ext=""
-            archive_ext="tar.gz"
-            if [ "${GOOS}" = "windows" ]; then
-              ext=".exe"
-              archive_ext="zip"
-            fi
-            echo "building ${bin_name}${ext} for ${GOOS}/${GOARCH}"
-            GOOS="${GOOS}" GOARCH="${GOARCH}" CGO_ENABLED=0 \
-              go build -ldflags="-s -w" -o "${build_dir}/${bin_name}${ext}"
-            if [ "${archive_ext}" = "zip" ]; then
-              (cd "${build_dir}" && zip -q "../${bin_name}_${GOOS}_${GOARCH}.zip" "${bin_name}${ext}")
-            else
-              (cd "${build_dir}" && tar -czf "../${bin_name}_${GOOS}_${GOARCH}.tar.gz" "${bin_name}${ext}")
-            fi
-            rm -rf "${build_dir}"
-          done
+          rm -rf "$dist"
+          mkdir -p "$dist"
+          bin="r1-plugins-sandbox"
+          ext=""
+          archive="tar.gz"
 
-      - name: Upload non-macOS artifacts
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            ext=".exe"
+            archive="zip"
+          fi
+
+          echo "Building ${bin}${ext} for ${{ matrix.goos }}/${{ matrix.goarch }}"
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 \
+            go build -ldflags="-s -w" -o "${bin}${ext}"
+
+          pkg="${bin}_${{ matrix.goos }}_${{ matrix.goarch }}"
+          if [ "$archive" = "zip" ]; then
+            zip -q "dist/${pkg}.zip" "${bin}${ext}"
+          else
+            tar -czf "dist/${pkg}.tar.gz" "${bin}${ext}"
+          fi
+          rm -f "${bin}${ext}"
+
+      - name: Upload artifact (non-macOS)
+        if: ${{ !matrix.mac }}
         uses: actions/upload-artifact@v4
         with:
-          name: non-mac-dist
+          name: artifact-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*
           if-no-files-found: error
 
-  build-macos:
-    name: Build Signed macOS Artifacts
-    runs-on: macos-latest
-    needs: calculate-version
-    env:
-      MAC_SIGNING_IDENTITY: ${{ secrets.MAC_SIGNING_IDENTITY }}
-      MAC_CERTIFICATE: ${{ secrets.MAC_CERTIFICATE }}
-      MAC_CERTIFICATE_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
-      MAC_KEYCHAIN_PASSWORD: ${{ secrets.MAC_KEYCHAIN_PASSWORD }}
-      AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
-      AC_API_ISSUER_ID: ${{ secrets.AC_API_ISSUER_ID }}
-      AC_API_KEY: ${{ secrets.AC_API_KEY }}
-      MAC_BUNDLE_ID: ai.ratio1.r1-plugins-sandbox
-      RELEASE_VERSION: ${{ needs.calculate-version.outputs.version }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      # macOS: composite action for build + sign + notarize + app bundle + zip
+      - name: Sign & Notarize macOS (universal + per-arch)
+        if: ${{ matrix.mac }}
+        uses: ./.github/actions/macos-sign-notarize
         with:
-          fetch-depth: 0
+          signing-identity: ${{ secrets.MAC_SIGNING_IDENTITY }}
+          certificate: ${{ secrets.MAC_CERTIFICATE }}
+          certificate-password: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+          keychain-password: ${{ secrets.MAC_KEYCHAIN_PASSWORD }}
+          ac-api-key-id: ${{ secrets.AC_API_KEY_ID }}
+          ac-api-issuer-id: ${{ secrets.AC_API_ISSUER_ID }}
+          ac-api-key: ${{ secrets.AC_API_KEY }}
+          bundle-id: ai.ratio1.r1-plugins-sandbox
+          version: ${{ env.RELEASE_VERSION }}
 
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: "1.21"
-
-      - name: Verify signing secrets
-        run: |
-          set -euo pipefail
-          missing=0
-          for var in MAC_SIGNING_IDENTITY MAC_CERTIFICATE MAC_CERTIFICATE_PASSWORD MAC_KEYCHAIN_PASSWORD AC_API_KEY_ID AC_API_ISSUER_ID AC_API_KEY; do
-            if [ -z "${!var}" ]; then
-              echo "::error::Missing required secret: ${var}"
-              missing=1
-            fi
-          done
-          if [ "${missing}" -ne 0 ]; then
-            exit 1
-          fi
-
-      - name: Import signing certificate
-        run: |
-          set -euo pipefail
-          CERT_PATH="${RUNNER_TEMP}/certificate.p12"
-          export CERT_PATH
-          python3 - <<'PY'
-          import base64, os, pathlib
-          path = pathlib.Path(os.environ["CERT_PATH"])
-          data = os.environ["MAC_CERTIFICATE"].encode()
-          path.write_bytes(base64.b64decode(data))
-          PY
-          KEYCHAIN_PATH="${RUNNER_TEMP}/build.keychain-db"
-          export KEYCHAIN_PATH
-          security create-keychain -p "${MAC_KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
-          security set-keychain-settings -lut 21600 "${KEYCHAIN_PATH}"
-          security unlock-keychain -p "${MAC_KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
-          security import "${CERT_PATH}" -k "${KEYCHAIN_PATH}" -P "${MAC_CERTIFICATE_PASSWORD}" -T /usr/bin/codesign -T /usr/bin/security
-          existing_keychains=$(security list-keychains -d user | tr -d '"')
-          security list-keychains -d user -s "${KEYCHAIN_PATH}" ${existing_keychains}
-          security default-keychain -d user -s "${KEYCHAIN_PATH}"
-          security set-key-partition-list -S apple-tool:,apple: -s -k "${MAC_KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
-          echo "SIGNING_KEYCHAIN=${KEYCHAIN_PATH}" >> "${GITHUB_ENV}"
-
-      - name: Prepare notarization key
-        run: |
-          set -euo pipefail
-          API_KEY_PATH="${RUNNER_TEMP}/AuthKey.p8"
-          export API_KEY_PATH
-          python3 - <<'PY'
-          import base64, os, pathlib
-          path = pathlib.Path(os.environ["API_KEY_PATH"])
-          data = os.environ["AC_API_KEY"].encode()
-          path.write_bytes(base64.b64decode(data))
-          PY
-          echo "AC_API_KEY_PATH=${API_KEY_PATH}" >> "${GITHUB_ENV}"
-
-      - name: Build, sign, and notarize macOS binaries
-        env:
-          CODESIGN_ALLOCATE: /usr/bin/codesign_allocate
-        run: |
-          set -euo pipefail
-          dist="dist"
-          rm -rf "${dist}"
-          mkdir -p "${dist}"
-          for GOARCH in amd64 arm64; do
-            build_dir="${RUNNER_TEMP}/mac_${GOARCH}"
-            mkdir -p "${build_dir}"
-            bin_path="${build_dir}/r1-plugins-sandbox"
-            echo "building signed binary for mac/${GOARCH}"
-            GOOS=darwin GOARCH="${GOARCH}" CGO_ENABLED=0 \
-              go build -ldflags="-s -w" -o "${bin_path}"
-            codesign --force --options runtime --timestamp --sign "${MAC_SIGNING_IDENTITY}" --keychain "${SIGNING_KEYCHAIN}" --identifier "${MAC_BUNDLE_ID}" "${bin_path}"
-            submission_zip="${RUNNER_TEMP}/r1-plugins-sandbox_mac_${GOARCH}.zip"
-            /usr/bin/zip -q "${submission_zip}" -j "${bin_path}"
-            xcrun notarytool submit "${submission_zip}" \
-              --key "${AC_API_KEY_PATH}" \
-              --key-id "${AC_API_KEY_ID}" \
-              --issuer "${AC_API_ISSUER_ID}" \
-              --wait
-            if ! xcrun stapler staple "${bin_path}"; then
-              echo "::warning::Stapler could not attach a ticket to ${bin_path}; continuing without staple (often unsupported for CLI binaries)."
-            fi
-            final_archive="${dist}/r1-plugins-sandbox_mac_${GOARCH}.zip"
-            mv "${submission_zip}" "${final_archive}"
-            tmp_unzip="${RUNNER_TEMP}/verify_${GOARCH}"
-            rm -rf "${tmp_unzip}"
-            mkdir -p "${tmp_unzip}"
-            /usr/bin/unzip -q "${final_archive}" -d "${tmp_unzip}"
-            /usr/bin/codesign --verify --verbose=2 "${tmp_unzip}/r1-plugins-sandbox"
-            rm -rf "${tmp_unzip}"
-          done
-
-          app_dir="${RUNNER_TEMP}/r1-plugins-sandbox.app"
-          rm -rf "${app_dir}"
-          mkdir -p "${app_dir}/Contents/MacOS" "${app_dir}/Contents/Resources"
-          universal_bin="${app_dir}/Contents/Resources/r1-plugins-sandbox"
-          lipo -create \
-            "${RUNNER_TEMP}/mac_amd64/r1-plugins-sandbox" \
-            "${RUNNER_TEMP}/mac_arm64/r1-plugins-sandbox" \
-            -output "${universal_bin}"
-          chmod +x "${universal_bin}"
-          cp packaging/macos/Info.plist "${app_dir}/Contents/Info.plist"
-          /usr/bin/plutil -replace CFBundleIdentifier -string "${MAC_BUNDLE_ID}.app" "${app_dir}/Contents/Info.plist"
-          /usr/bin/plutil -replace CFBundleShortVersionString -string "${RELEASE_VERSION}" "${app_dir}/Contents/Info.plist"
-          /usr/bin/plutil -replace CFBundleVersion -string "${RELEASE_VERSION}" "${app_dir}/Contents/Info.plist"
-          launcher_path="${app_dir}/Contents/MacOS/launcher"
-          install -m 0755 packaging/macos/launcher.sh "${launcher_path}"
-          codesign --force --options runtime --timestamp --sign "${MAC_SIGNING_IDENTITY}" --keychain "${SIGNING_KEYCHAIN}" --identifier "${MAC_BUNDLE_ID}" "${universal_bin}"
-          codesign --force --options runtime --timestamp --sign "${MAC_SIGNING_IDENTITY}" --keychain "${SIGNING_KEYCHAIN}" --identifier "${MAC_BUNDLE_ID}.app" --deep "${app_dir}"
-          app_submission_zip="${RUNNER_TEMP}/r1-plugins-sandbox.app.zip"
-          /usr/bin/ditto -c -k --keepParent "${app_dir}" "${app_submission_zip}"
-          xcrun notarytool submit "${app_submission_zip}" \
-            --key "${AC_API_KEY_PATH}" \
-            --key-id "${AC_API_KEY_ID}" \
-            --issuer "${AC_API_ISSUER_ID}" \
-            --wait
-          xcrun stapler staple "${app_dir}"
-          final_app_zip="${dist}/r1-plugins-sandbox-macos.app.zip"
-          /usr/bin/ditto -c -k --keepParent "${app_dir}" "${final_app_zip}"
-
-      - name: Upload macOS artifacts
+      - name: Upload artifact (macOS)
+        if: ${{ matrix.mac }}
         uses: actions/upload-artifact@v4
         with:
           name: macos-dist
@@ -238,21 +131,11 @@ jobs:
   release:
     name: Publish Release
     runs-on: ubuntu-latest
-    needs:
-      - calculate-version
-      - build-non-mac
-      - build-macos
+    needs: [calculate-version, build]
     steps:
-      - name: Download non-macOS artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: non-mac-dist
-          path: dist
-
-      - name: Download macOS artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: macos-dist
           path: dist
 
       - name: Create GitHub Release
@@ -262,6 +145,6 @@ jobs:
           name: v${{ needs.calculate-version.outputs.version }}
           draft: false
           prerelease: false
-          files: dist/*
+          files: dist/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
