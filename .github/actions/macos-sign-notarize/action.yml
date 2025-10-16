@@ -99,11 +99,6 @@ runs:
                   --issuer "${{ inputs.ac-api-issuer-id }}" \
                   --wait
 
-                # Staple (may be unsupported for raw CLI, warn if so)
-                if ! xcrun stapler staple "${bin}"; then
-                  echo "::warning::Stapler could not attach a ticket to ${bin}; continuing."
-                fi
-
                 # Move final per-arch zip to dist
                 mv "${zip_path}" "dist/r1-plugins-sandbox_mac_${GOARCH}.zip"
 
