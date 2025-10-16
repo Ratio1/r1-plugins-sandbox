@@ -185,7 +185,6 @@ jobs:
               --key-id "${AC_API_KEY_ID}" \
               --issuer "${AC_API_ISSUER_ID}" \
               --wait
-            xcrun stapler staple "${bin_path}"
             final_archive="${dist}/r1-plugins-sandbox_darwin_${GOARCH}.zip"
             /usr/bin/zip -q "${final_archive}" -j "${bin_path}"
             rm -f "${submission_zip}"
