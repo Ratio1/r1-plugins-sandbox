@@ -12,6 +12,7 @@ Every push to `main` triggers the release workflow in `.github/workflows/release
 | ------- | ----- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Linux   | amd64 | `r1-plugins-sandbox_linux_amd64.tar.gz`  | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_linux_amd64.tar.gz)  |
 | Linux   | arm64 | `r1-plugins-sandbox_linux_arm64.tar.gz`  | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_linux_arm64.tar.gz)  |
+| macOS   | universal app | `r1-plugins-sandbox-macos.app.zip`     | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox-macos.app.zip)       |
 | macOS   | amd64 | `r1-plugins-sandbox_mac_amd64.zip`       | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_mac_amd64.zip)       |
 | macOS   | arm64 | `r1-plugins-sandbox_mac_arm64.zip`       | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_mac_arm64.zip)       |
 | Windows | amd64 | `r1-plugins-sandbox_windows_amd64.zip`   | [Download](https://github.com/Ratio1/r1-plugins-sandbox/releases/latest/download/r1-plugins-sandbox_windows_amd64.zip)   |
