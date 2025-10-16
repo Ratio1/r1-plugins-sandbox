@@ -83,7 +83,7 @@ jobs:
           done
 
       - name: Upload non-macOS artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: non-darwin-dist
           path: dist/*
@@ -192,7 +192,7 @@ jobs:
           done
 
       - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macos-dist
           path: dist/*
@@ -207,13 +207,13 @@ jobs:
       - build-macos
     steps:
       - name: Download non-macOS artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: non-darwin-dist
           path: dist
 
       - name: Download macOS artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: macos-dist
           path: dist
