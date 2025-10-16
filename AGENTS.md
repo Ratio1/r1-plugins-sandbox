@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 
 -   `main.go` runs the mock HTTP services and wires the cstore and r1fs handlers.
--   `mock/cstore` and `mock/r1fs` hold the in-memory stores plus unit tests that define expected behaviour.
+-   `mock/cstore` and `mock/r1fs` hold the in-memory stores plus unit tests that define expected behaviour. The sandbox mirrors the Ratio1 edge node APIs (https://github.com/Ratio1/edge_node), currently covering [`cstore_manager_api.py`](https://github.com/Ratio1/edge_node/blob/main/extensions/business/cstore/cstore_manager_api.py) and [`r1fs_manager_api.py`](https://github.com/Ratio1/edge_node/blob/main/extensions/business/r1fs/r1fs_manager_api.py).
 -   `internal/devseed` exposes helpers for loading JSON seed files used by both mocks.
 -   `packaging/macos` contains the launcher script and plist used for signed release bundles.
 -   `mock` fixtures and the compiled `r1-plugins-sandbox` binary in the root are safe to regenerate locally.

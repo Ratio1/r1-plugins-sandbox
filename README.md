@@ -1,6 +1,6 @@
 # Ratio1 Plugins Sandbox
 
-The Ratio1 Plugins Sandbox is a self-contained HTTP server that mimics the CStore and R1FS FastAPI plugins used by Ratio1 edge nodes. It keeps the official mocks behind HTTP endpoints so that SDK clients and other integrations can be exercised locally without a live infrastructure.
+The Ratio1 Plugins Sandbox is a self-contained HTTP server that mimics the CStore and R1FS FastAPI plugins used by Ratio1 edge nodes. It keeps the official mocks behind HTTP endpoints so that SDK clients and other integrations can be exercised locally without a live infrastructure. It simulates the APIs defined in [`cstore_manager_api.py`](https://github.com/Ratio1/edge_node/blob/main/extensions/business/cstore/cstore_manager_api.py) and [`r1fs_manager_api.py`](https://github.com/Ratio1/edge_node/blob/main/extensions/business/r1fs/r1fs_manager_api.py).
 
 It is designed to run alongside [ratio1_sdk_go](https://github.com/Ratio1/ratio1_sdk_go) and [edge-node-client](https://github.com/Ratio1/edge-node-client) during product development, so you can validate end-to-end flows without connecting to a live node.
 
