@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BIN="${APP_DIR}/Contents/Resources/r1-plugins-sandbox"
+CONTENTS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+BIN="${CONTENTS_DIR}/Resources/r1-plugins-sandbox"
 
 if [ ! -x "${BIN}" ]; then
   if [ -x /usr/bin/osascript ]; then
