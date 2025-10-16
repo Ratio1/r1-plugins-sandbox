@@ -22,5 +22,5 @@ on run argv
 end run
 APPLESCRIPT
 else
-  /usr/bin/open -a Terminal "${BIN}"
+  exec "${BIN}"
 fi
