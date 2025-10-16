@@ -185,14 +185,17 @@ jobs:
               --key-id "${AC_API_KEY_ID}" \
               --issuer "${AC_API_ISSUER_ID}" \
               --wait
-            xcrun stapler staple "${submission_zip}"
             final_archive="${dist}/r1-plugins-sandbox_darwin_${GOARCH}.zip"
-            mv "${submission_zip}" "${final_archive}"
+            if ! xcrun stapler staple "${bin_path}"; then
+              echo "::warning::Stapler could not attach a ticket to ${bin_path}; continuing without staple (often unsupported for CLI binaries)."
+            fi
+            /usr/bin/zip -q "${final_archive}" -j "${bin_path}"
             tmp_unzip="${RUNNER_TEMP}/verify_${GOARCH}"
             rm -rf "${tmp_unzip}"
             mkdir -p "${tmp_unzip}"
             /usr/bin/unzip -q "${final_archive}" -d "${tmp_unzip}"
             /usr/sbin/spctl --assess --type execute "${tmp_unzip}/r1-plugins-sandbox"
+            rm -rf "${tmp_unzip}" "${submission_zip}"
           done
 
       - name: Upload macOS artifacts
