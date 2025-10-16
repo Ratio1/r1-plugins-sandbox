@@ -99,18 +99,6 @@ func main() {
 		log.Fatalf("parse fail flag: %v", err)
 	}
 
-	recoverMiddleware := func(next http.HandlerFunc) http.HandlerFunc {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			defer func() {
-				if rec := recover(); rec != nil {
-					log.Printf("panic: %v", rec)
-					http.Error(w, "internal error", http.StatusInternalServerError)
-				}
-			}()
-			next.ServeHTTP(w, r)
-		})
-	}
-
 	wrap := func(next http.HandlerFunc) http.HandlerFunc {
 		return recoverMiddleware(loggingMiddleware(withMiddleware(*latency, failCfg, next)))
 	}
@@ -185,7 +173,6 @@ func main() {
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
-		// ErrorLog: log.New(os.Stderr, "r1fs: ", log.LstdFlags),
 	}
 
 	fmt.Print(Logo)
@@ -232,6 +219,18 @@ func main() {
 	if err := g.Wait(); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
+}
+
+func recoverMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				log.Printf("panic: %v", rec)
+				http.Error(w, "internal error", http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 func loggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
