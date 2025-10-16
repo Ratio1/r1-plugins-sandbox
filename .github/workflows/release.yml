@@ -178,16 +178,21 @@ jobs:
             GOOS=darwin GOARCH="${GOARCH}" CGO_ENABLED=0 \
               go build -ldflags="-s -w" -o "${bin_path}"
             codesign --force --options runtime --timestamp --sign "${MAC_SIGNING_IDENTITY}" --keychain "${SIGNING_KEYCHAIN}" "${bin_path}"
-            submission_zip="${RUNNER_TEMP}/r1-plugins-sandbox_darwin_${GOARCH}_submission.zip"
+            submission_zip="${RUNNER_TEMP}/r1-plugins-sandbox_darwin_${GOARCH}.zip"
             /usr/bin/zip -q "${submission_zip}" -j "${bin_path}"
             xcrun notarytool submit "${submission_zip}" \
               --key "${AC_API_KEY_PATH}" \
               --key-id "${AC_API_KEY_ID}" \
               --issuer "${AC_API_ISSUER_ID}" \
               --wait
+            xcrun stapler staple "${submission_zip}"
             final_archive="${dist}/r1-plugins-sandbox_darwin_${GOARCH}.zip"
-            /usr/bin/zip -q "${final_archive}" -j "${bin_path}"
-            rm -f "${submission_zip}"
+            mv "${submission_zip}" "${final_archive}"
+            tmp_unzip="${RUNNER_TEMP}/verify_${GOARCH}"
+            rm -rf "${tmp_unzip}"
+            mkdir -p "${tmp_unzip}"
+            /usr/bin/unzip -q "${final_archive}" -d "${tmp_unzip}"
+            /usr/sbin/spctl --assess --type execute "${tmp_unzip}/r1-plugins-sandbox"
           done
 
       - name: Upload macOS artifacts
