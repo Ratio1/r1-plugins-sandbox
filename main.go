@@ -412,7 +412,7 @@ func handleCStoreHGetAll(w http.ResponseWriter, r *http.Request, store *cstoremo
 		return
 	}
 	if len(items) == 0 {
-		writeResult(w, nil)
+		writeResult(w, map[string]any{})
 		return
 	}
 	result := make(map[string]any, len(items))
