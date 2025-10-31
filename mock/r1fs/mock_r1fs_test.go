@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/Ratio1/r1-plugins-sandbox/internal/devseed"
@@ -156,5 +157,69 @@ func TestMockStructuredData(t *testing.T) {
 	}
 	if calcPickle == "" {
 		t.Fatalf("CalculatePickleCID returned empty cid")
+	}
+}
+
+func TestMockDeleteFile(t *testing.T) {
+	m := mock.New()
+	ctx := context.Background()
+
+	cid, err := m.AddFile(ctx, bytes.NewReader([]byte("delete-me")), &mock.DataOptions{Filename: "remove.txt"})
+	if err != nil {
+		t.Fatalf("AddFile: %v", err)
+	}
+
+	ok, err := m.DeleteFile(ctx, cid)
+	if err != nil {
+		t.Fatalf("DeleteFile: %v", err)
+	}
+	if !ok {
+		t.Fatalf("DeleteFile expected success")
+	}
+
+	if _, err := m.GetFile(ctx, cid, ""); !errors.Is(err, mock.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound after delete, got %v", err)
+	}
+
+	ok, err = m.DeleteFile(ctx, cid)
+	if err != nil {
+		t.Fatalf("DeleteFile second attempt: %v", err)
+	}
+	if ok {
+		t.Fatalf("DeleteFile expected failure for missing cid")
+	}
+}
+
+func TestMockDeleteFiles(t *testing.T) {
+	m := mock.New()
+	ctx := context.Background()
+
+	cidA, err := m.AddFile(ctx, bytes.NewReader([]byte("file-a")), &mock.DataOptions{Filename: "a.txt"})
+	if err != nil {
+		t.Fatalf("AddFile A: %v", err)
+	}
+	cidB, err := m.AddFile(ctx, bytes.NewReader([]byte("file-b")), &mock.DataOptions{Filename: "b.txt"})
+	if err != nil {
+		t.Fatalf("AddFile B: %v", err)
+	}
+
+	success, failed, err := m.DeleteFiles(ctx, []string{cidA, "missing", " " + cidB + " "})
+	if err != nil {
+		t.Fatalf("DeleteFiles: %v", err)
+	}
+	if len(success) != 2 {
+		t.Fatalf("expected 2 successes, got %d (%v)", len(success), success)
+	}
+	if len(failed) != 1 || failed[0] != "missing" {
+		t.Fatalf("expected missing failure, got %v", failed)
+	}
+	if success[0] != cidA || success[1] != cidB {
+		t.Fatalf("unexpected success list: %v", success)
+	}
+	if _, err := m.GetFile(ctx, cidA, ""); !errors.Is(err, mock.ErrNotFound) {
+		t.Fatalf("expected cidA deleted, got %v", err)
+	}
+	if _, err := m.GetFile(ctx, cidB, ""); !errors.Is(err, mock.ErrNotFound) {
+		t.Fatalf("expected cidB deleted, got %v", err)
 	}
 }
