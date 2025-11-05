@@ -173,6 +173,59 @@ func (m *Mock) Status() map[string]any {
 	}
 }
 
+// DeleteFile removes a file from the mock store, mirroring /delete_file.
+func (m *Mock) DeleteFile(ctx context.Context, cid string) (bool, error) {
+	if strings.TrimSpace(cid) == "" {
+		return false, fmt.Errorf("mock r1fs: cid is required")
+	}
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	normalized := normalizePath(cid)
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.files == nil {
+		return false, nil
+	}
+	if _, ok := m.files[normalized]; !ok {
+		return false, nil
+	}
+
+	delete(m.files, normalized)
+	delete(m.fileNames, cid)
+	delete(m.yamlDocs, cid)
+
+	return true, nil
+}
+
+// DeleteFiles removes multiple files, mirroring /delete_files.
+func (m *Mock) DeleteFiles(ctx context.Context, cids []string) (success []string, failed []string, err error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+	success = make([]string, 0, len(cids))
+	failed = make([]string, 0, len(cids))
+	for _, cid := range cids {
+		cid = strings.TrimSpace(cid)
+		if cid == "" {
+			failed = append(failed, cid)
+			continue
+		}
+		ok, err := m.DeleteFile(ctx, cid)
+		if err != nil {
+			return nil, nil, err
+		}
+		if ok {
+			success = append(success, cid)
+		} else {
+			failed = append(failed, cid)
+		}
+	}
+	return success, failed, nil
+}
+
 // AddJSON stores JSON data and returns a CID.
 func (m *Mock) AddJSON(ctx context.Context, data any, opts *DataOptions) (cid string, err error) {
 	if data == nil {

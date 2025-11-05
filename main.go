@@ -154,6 +154,12 @@ func main() {
 	r1fsMux.HandleFunc("/get_yaml", wrap(func(w http.ResponseWriter, r *http.Request) {
 		handleR1FSGetYAML(w, r, fsMock)
 	}))
+	r1fsMux.HandleFunc("/delete_file", wrap(func(w http.ResponseWriter, r *http.Request) {
+		handleR1FSDeleteFile(w, r, fsMock)
+	}))
+	r1fsMux.HandleFunc("/delete_files", wrap(func(w http.ResponseWriter, r *http.Request) {
+		handleR1FSDeleteFiles(w, r, fsMock)
+	}))
 	r1fsMux.HandleFunc("/get_status", wrap(func(w http.ResponseWriter, r *http.Request) {
 		handleR1FSStatus(w, r, fsMock)
 	}))
@@ -785,6 +791,70 @@ func handleR1FSGetYAML(w http.ResponseWriter, r *http.Request, fs *r1fsmock.Mock
 		return
 	}
 	writeResult(w, payload)
+}
+
+func handleR1FSDeleteFile(w http.ResponseWriter, r *http.Request, fs *r1fsmock.Mock) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed", nil)
+		return
+	}
+	var payload struct {
+		CID               string `json:"cid"`
+		UnpinRemote       bool   `json:"unpin_remote"`
+		RunGC             bool   `json:"run_gc"`
+		CleanupLocalFiles bool   `json:"cleanup_local_files"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON payload", err)
+		return
+	}
+	success, err := fs.DeleteFile(r.Context(), payload.CID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "r1fs delete_file failed", err)
+		return
+	}
+	message := fmt.Sprintf("Failed to delete file %s", payload.CID)
+	if success {
+		message = fmt.Sprintf("File %s deleted successfully", payload.CID)
+	}
+	writeResult(w, map[string]any{
+		"success": success,
+		"message": message,
+		"cid":     payload.CID,
+	})
+}
+
+func handleR1FSDeleteFiles(w http.ResponseWriter, r *http.Request, fs *r1fsmock.Mock) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed", nil)
+		return
+	}
+	var payload struct {
+		CIDs              []string `json:"cids"`
+		UnpinRemote       bool     `json:"unpin_remote"`
+		RunGCAfterAll     bool     `json:"run_gc_after_all"`
+		CleanupLocalFiles bool     `json:"cleanup_local_files"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON payload", err)
+		return
+	}
+	if len(payload.CIDs) == 0 {
+		writeError(w, http.StatusBadRequest, "cids is required", nil)
+		return
+	}
+	success, failed, err := fs.DeleteFiles(r.Context(), payload.CIDs)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "r1fs delete_files failed", err)
+		return
+	}
+	writeResult(w, map[string]any{
+		"success":       success,
+		"failed":        failed,
+		"total":         len(payload.CIDs),
+		"success_count": len(success),
+		"failed_count":  len(failed),
+	})
 }
 
 func coerceToInt(value any) (int, bool) {
