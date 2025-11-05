@@ -195,9 +195,7 @@ func (m *Mock) DeleteFile(ctx context.Context, cid string) (bool, error) {
 
 	delete(m.files, normalized)
 	delete(m.fileNames, cid)
-	delete(m.fileNames, normalized)
 	delete(m.yamlDocs, cid)
-	delete(m.yamlDocs, normalized)
 
 	return true, nil
 }

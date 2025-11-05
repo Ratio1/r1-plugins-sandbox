@@ -808,11 +808,6 @@ func handleR1FSDeleteFile(w http.ResponseWriter, r *http.Request, fs *r1fsmock.M
 		writeError(w, http.StatusBadRequest, "invalid JSON payload", err)
 		return
 	}
-	payload.CID = strings.TrimSpace(payload.CID)
-	if payload.CID == "" {
-		writeError(w, http.StatusBadRequest, "cid is required", nil)
-		return
-	}
 	success, err := fs.DeleteFile(r.Context(), payload.CID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "r1fs delete_file failed", err)
@@ -847,12 +842,6 @@ func handleR1FSDeleteFiles(w http.ResponseWriter, r *http.Request, fs *r1fsmock.
 	if len(payload.CIDs) == 0 {
 		writeError(w, http.StatusBadRequest, "cids is required", nil)
 		return
-	}
-	for _, cid := range payload.CIDs {
-		if strings.TrimSpace(cid) == "" {
-			writeError(w, http.StatusBadRequest, "cids must not contain empty entries", nil)
-			return
-		}
 	}
 	success, failed, err := fs.DeleteFiles(r.Context(), payload.CIDs)
 	if err != nil {
