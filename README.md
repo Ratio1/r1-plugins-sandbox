@@ -132,6 +132,7 @@ Use `--latency` to simulate slow dependencies and `--fail` to trigger intermitte
 -   `POST /set` – store a value.
 -   `GET /get` – fetch a value by key.
 -   `POST /hset` / `GET /hget` / `GET /hgetall` – hash primitives.
+-   `POST /hsync` – refresh one hash namespace and return merge metadata.
 -   `GET /get_status` – inspect current keys.
 
 **R1FS**

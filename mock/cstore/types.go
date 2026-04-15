@@ -20,6 +20,13 @@ type HashItem[T any] struct {
 	Value   T
 }
 
+// HashSyncResult describes the response returned by /hsync.
+type HashSyncResult struct {
+	HashKey      string `json:"hkey"`
+	SourcePeer   string `json:"source_peer"`
+	MergedFields int    `json:"merged_fields"`
+}
+
 // SetOptions is reserved for future write controls.
 type SetOptions struct{}
 
