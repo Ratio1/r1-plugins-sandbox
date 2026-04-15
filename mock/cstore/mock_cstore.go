@@ -93,6 +93,11 @@ func HGetAll[T any](ctx context.Context, store *Mock, hashKey string) (items []H
 	return listHashItems[T](ctx, store, hashKey)
 }
 
+// HSync refreshes one hash namespace and returns a summary envelope.
+func HSync(ctx context.Context, store *Mock, hashKey string, chainstorePeers []string) (result *HashSyncResult, err error) {
+	return syncHash(ctx, store, hashKey, chainstorePeers)
+}
+
 func getItem[T any](ctx context.Context, store *Mock, key string) (*Item[T], error) {
 	if strings.TrimSpace(key) == "" {
 		return nil, fmt.Errorf("mock cstore: key is required")
@@ -242,4 +247,35 @@ func listHashItems[T any](ctx context.Context, store *Mock, hashKey string) ([]H
 		items = append(items, HashItem[T]{HashKey: hashKey, Field: field, Value: value})
 	}
 	return items, nil
+}
+
+func syncHash(ctx context.Context, store *Mock, hashKey string, chainstorePeers []string) (*HashSyncResult, error) {
+	if strings.TrimSpace(hashKey) == "" {
+		return nil, fmt.Errorf("mock cstore: hash key is required")
+	}
+	if store == nil {
+		return nil, fmt.Errorf("mock cstore: store is nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	store.mu.RLock()
+	bucket := store.hashes[hashKey]
+	mergedFields := len(bucket)
+	store.mu.RUnlock()
+
+	sourcePeer := "mock-local"
+	for _, peer := range chainstorePeers {
+		if strings.TrimSpace(peer) != "" {
+			sourcePeer = peer
+			break
+		}
+	}
+
+	return &HashSyncResult{
+		HashKey:      hashKey,
+		SourcePeer:   sourcePeer,
+		MergedFields: mergedFields,
+	}, nil
 }

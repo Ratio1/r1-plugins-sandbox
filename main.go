@@ -122,6 +122,9 @@ func main() {
 	cstoreMux.HandleFunc("/hgetall", wrap(func(w http.ResponseWriter, r *http.Request) {
 		handleCStoreHGetAll(w, r, csMock)
 	}))
+	cstoreMux.HandleFunc("/hsync", wrap(func(w http.ResponseWriter, r *http.Request) {
+		handleCStoreHSync(w, r, csMock)
+	}))
 
 	r1fsMux := http.NewServeMux()
 	r1fsMux.HandleFunc("/add_file_base64", wrap(func(w http.ResponseWriter, r *http.Request) {
@@ -424,6 +427,31 @@ func handleCStoreHGetAll(w http.ResponseWriter, r *http.Request, store *cstoremo
 	result := make(map[string]any, len(items))
 	for _, item := range items {
 		result[item.Field] = item.Value
+	}
+	writeResult(w, result)
+}
+
+func handleCStoreHSync(w http.ResponseWriter, r *http.Request, store *cstoremock.Mock) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed", nil)
+		return
+	}
+	var payload struct {
+		HashKey         string   `json:"hkey"`
+		ChainstorePeers []string `json:"chainstore_peers"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON payload", err)
+		return
+	}
+	if strings.TrimSpace(payload.HashKey) == "" {
+		writeError(w, http.StatusBadRequest, "hkey is required", nil)
+		return
+	}
+	result, err := cstoremock.HSync(r.Context(), store, payload.HashKey, payload.ChainstorePeers)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "cstore hsync failed", err)
+		return
 	}
 	writeResult(w, result)
 }

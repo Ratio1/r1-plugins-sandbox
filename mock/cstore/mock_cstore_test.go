@@ -121,3 +121,34 @@ func TestMockHashOperations(t *testing.T) {
 		t.Fatalf("expected nil for missing hash field, got %#v", missing)
 	}
 }
+
+func TestMockHSync(t *testing.T) {
+	m := mock.New()
+	ctx := context.Background()
+
+	if err := mock.HSet(ctx, m, "players", "a", sample{Value: "one"}, nil); err != nil {
+		t.Fatalf("HSet players/a: %v", err)
+	}
+	if err := mock.HSet(ctx, m, "players", "b", sample{Value: "two"}, nil); err != nil {
+		t.Fatalf("HSet players/b: %v", err)
+	}
+
+	result, err := mock.HSync(ctx, m, "players", nil)
+	if err != nil {
+		t.Fatalf("HSync default peers: %v", err)
+	}
+	if result == nil {
+		t.Fatalf("expected non-nil sync result")
+	}
+	if result.HashKey != "players" || result.SourcePeer != "mock-local" || result.MergedFields != 2 {
+		t.Fatalf("unexpected sync result: %#v", result)
+	}
+
+	result, err = mock.HSync(ctx, m, "players", []string{"peer-a", "peer-b"})
+	if err != nil {
+		t.Fatalf("HSync explicit peers: %v", err)
+	}
+	if result == nil || result.SourcePeer != "peer-a" {
+		t.Fatalf("unexpected explicit peer result: %#v", result)
+	}
+}
